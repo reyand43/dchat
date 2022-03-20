@@ -1,0 +1,16 @@
+{
+  "extends": "airbnb",
+  "plugins": [
+    "react"
+  ],
+  "parserOptions": {
+    "ecmaFeatures": {
+      "jsx": true,
+      "experimentalObjectRestSpread": true
+    }
+  },
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "react/button-has-type": "off"
+  }
+}
