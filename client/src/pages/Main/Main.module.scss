@@ -1,0 +1,39 @@
+.root {
+  display: flex;
+}
+
+.users {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid gray;
+  padding: 10px;
+}
+
+.videoWrapper {
+  position: relative;
+  width: 40%;
+  border: 2px solid red;
+  height: fit-content;
+}
+
+.videoCaption {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  color: white;
+  font-weight: 600;
+}
+
+.videos {
+  display: flex;
+  flex-wrap: wrap;
+  height: 100vh;
+  position: relative;
+  width: 100%;
+  flex-grow: 1;
+}
+
+.localVideo {
+  transform: scale(-1, 1)
+}

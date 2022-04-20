@@ -1,13 +1,14 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
-import Call from './pages/Call/Call';
 import Main from './pages/Main/Main';
+import Network from './pages/Network/Network';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route exact path="/room/:id" element={<Call />} />
+        {/* <Route exact path="/call" element={<Call />} /> */}
         <Route exact path="/" element={<Main />} />
+        <Route exact path="/network" element={<Network />} />
       </Routes>
     </BrowserRouter>
   );

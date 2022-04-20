@@ -1,63 +1,69 @@
+/* eslint-disable no-undef */
 /* eslint-disable jsx-a11y/media-has-caption */
-import { useParams } from 'react-router-dom';
-import useWebRTC, { LOCAL_VIDEO } from '../../hooks/useWebRTC';
-
-function Layout(clientNumber = 1) {
-  const pairs = Array.from({ length: clientNumber })
-    .reduce((acc, next, index, arr) => {
-      if (index % 2 === 0) {
-        acc.push(arr.slice(index, index + 2));
-      }
-
-      return acc;
-    }, []);
-
-  const rowsNumber = pairs.length;
-  const height = `${100 / rowsNumber}%`;
-
-  return pairs.map((row, index, arr) => {
-    if (index === arr.length - 1 && row.length === 1) {
-      return [{
-        width: '100%',
-        height,
-      }];
-    }
-    return row.map(() => ({
-      width: '50%',
-      height,
-    }));
-  }).flat();
-}
+import { useMemo, useEffect } from 'react';
+import ROLES from '../../const/roles';
+import useWebRTC2 from '../../hooks/useWebRTC2';
+import styles from './Call.module.scss';
 
 function Call() {
-  const { id: roomID } = useParams();
-  const { clients, provideMediaRef } = useWebRTC(roomID);
-  const videoLayout = Layout(clients.length);
+  const {
+    clients, changeRole, localClient,
+  } = useWebRTC2();
+  const handleWatch = () => {
+    changeRole(ROLES.WATCHER);
+  };
 
-  console.log(clients);
+  const handleStream = () => {
+    changeRole(ROLES.STREAMER);
+  };
+
+  const allClients = useMemo(() => {
+    if (localClient) {
+      return [localClient, ...clients];
+    }
+    return clients;
+  }, [clients, localClient]);
+
+  useEffect(() => {
+    console.log('!!!', allClients);
+  }, [allClients]);
+
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexWrap: 'wrap',
-      height: '100vh',
-    }}
-    >
-      {clients.map((clientID, index) => (
-        <div key={clientID} style={videoLayout[index]}>
+    <div className={styles.videos}>
+      {allClients.map((client) => (
+        client.role === ROLES.STREAMER && (
+        <div key={client.peerID} className={styles.videoWrapper}>
           <video
             width="100%"
             height="100%"
-            ref={(instance) => {
-              provideMediaRef(clientID, instance);
-            }}
+            // ref={(instance) => {
+            //   provideMediaRef(peerID, instance);
+            // }}
             autoPlay
             playsInline
-            muted={clientID === LOCAL_VIDEO}
+            // muted={clientID === LOCAL_VIDEO}
+            muted
           />
+          <div className={styles.videoCaption}>
+            <span>{client.peerID === window.localStorage.getItem('peerID') ? 'You' : client.name}</span>
+            {client.audio && <span>&nbsp;Mic&nbsp;</span>}
+            {client.video && <span>&nbsp;Vid&nbsp;</span>}
+            <span>{client.role}</span>
+          </div>
         </div>
+        )
       ))}
+      <button style={{ top: 0, left: 0, position: 'absolute' }} onClick={handleStream}>Stream</button>
+      <button style={{ top: 0, left: '100px', position: 'absolute' }} onClick={handleWatch}>Watch</button>
+      <ul className={styles.users}>
+        {allClients.map((client) => (
+          <li key={client.peerID}>
+            {client.peerID === window.localStorage.getItem('peerID') ? 'You' : client.name}
+            &nbsp;
+            {client.role}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

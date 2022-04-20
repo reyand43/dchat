@@ -5,15 +5,36 @@ const server = require('http').createServer(app);
 const io = require('socket.io')(server)
 const ACTIONS = require('./const/actions');
 const PORT = process.env.PORT || 3001;
-const { version, validate } = require('uuid');
+
+const ROLES = {
+  STREAMER: "streamer",
+  WATCHER: "watcher",
+}
+
+// {
+//   name: string;
+//   role: string;
+//   video: Boolean;
+//   audio: Boolean;
+// }
+const store = new Map();
 
 function getClientRooms() {
-  const {rooms} = io.sockets.adapter;
-
-  return Array.from(rooms.keys()).filter((roomID) => validate(roomID) && version(roomID) === 4);
+  // const { rooms } = io.sockets.adapter;
+  return [
+      {
+        role: ROLES.STREAMER,
+        users: [...store.values()].filter(((u) => u?.role === ROLES.STREAMER))
+      },
+      {
+        role: ROLES.WATCHER,
+        users: [...store.values()].filter(((u) => u?.role === ROLES.WATCHER))
+      },
+    ]
 }
 
 function shareRoomsInfo() {
+  console.log(getClientRooms())
   io.emit(ACTIONS.SHARE_ROOMS, {
     rooms: getClientRooms()
   })
@@ -21,41 +42,69 @@ function shareRoomsInfo() {
 
 io.on("connection", socket => {
   console.log("socket connected")
-  shareRoomsInfo();
+  shareRoomsInfo();  
+  socket.emit(ACTIONS.PEER_ID, { peerID: socket.id })
 
-  socket.on(ACTIONS.JOIN, config => {
-    console.log("JOIN")
-    const {room: roomID} = config;
-    const {rooms: joinedRooms} = socket;
+  socket.on(ACTIONS.JOIN, ({ room, name }) => {
+    store.set(socket.id, {
+      name,
+      audio: true,
+      video: true,
+      role: room,
+    })
+    // joinRoom({ room })
+    setConnections({ room })
+  })
 
-    if (Array.from(joinedRooms).includes(roomID)) {
-      return console.warn(`Already joined to ${roomID}`);
+  function setConnections({ room }) {
+    const clients = Array.from(io.sockets.adapter.rooms.get(ROLES.STREAMER) || [])
+    if (room === ROLES.STREAMER) {
+      clients = clients.concat(Array.from(io.sockets.adapter.rooms.get(ROLES.WATCHER) || []));
     }
 
-    const clients = Array.from(io.sockets.adapter.rooms.get(roomID) || []);
+    clients.forEach((client) => {
 
-    clients.forEach(clientID => {
-      io.to(clientID).emit(ACTIONS.ADD_PEER, {
+      io.to(client).emit(ACTIONS.ADD_PEER, {
         peerID: socket.id,
-        createOffer: false
+        createOffer: false,
+        socketData: store.get(socket.id)
       });
 
       socket.emit(ACTIONS.ADD_PEER, {
-        peerID: clientID,
+        peerID: client,
         createOffer: true,
+        socketData: store.get(client)
       });
-    });
+    })
 
-    socket.join(roomID);
+    socket.join(room);
     shareRoomsInfo();
-  });
+  }
 
-  socket.on(ACTIONS.SHARE_ROOMS, config => {
-    console.log("SHARE ROOMS");
-  })
+  // function joinRoom({ room }) {
+  //   const clients = Array.from(io.sockets.adapter.rooms.get(ROLES.STREAMER) || [])
+  //     .concat(Array.from(io.sockets.adapter.rooms.get(ROLES.WATCHER) || []));
+  //   console.log(Array.from(io.sockets.adapter.rooms.get(ROLES.STREAMER) || []), '||||',
+  //     (Array.from(io.sockets.adapter.rooms.get(ROLES.WATCHER) || [])))
+
+  //   clients.forEach(clientID => {
+  //     io.to(clientID).emit(ACTIONS.ADD_PEER, {
+  //       peerID: socket.id,
+  //       createOffer: false,
+  //       socketData: store.get(socket.id)
+  //     });
+
+  //     socket.emit(ACTIONS.ADD_PEER, {
+  //       peerID: clientID,
+  //       createOffer: true,
+  //       socketData: store.get(clientID)
+  //     });
+  //   });
+  // }
 
   function leaveRoom() {
-    const {rooms} = socket;
+    const { rooms } = socket;
+    store.delete(socket.id)
 
     Array.from(rooms)
       .forEach(roomID => {
@@ -95,6 +144,25 @@ io.on("connection", socket => {
       peerID: socket.id,
       iceCandidate,
     })
+  })
+
+  socket.on(ACTIONS.CHANGE_ROLE, ({ role }) => {
+    if (role === ROLES.WATCHER) {
+      socket.leave(ROLES.STREAMER)
+      store.set(socket.id, {
+        ...store.get(socket.id),
+        role: ROLES.WATCHER,
+      })
+      joinRoom({ room: role })
+    } else {
+      socket.leave(ROLES.WATCHER)
+      store.set(socket.id, {
+        ...store.get(socket.id),
+        role: ROLES.STREAMER,
+      })
+      joinRoom({ room: role })
+    }
+    
   })
 })
 
