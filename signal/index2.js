@@ -5,6 +5,7 @@ const server = require('http').createServer(app);
 const io = require('socket.io')(server)
 const ACTIONS = require('./const/actions');
 const User = require('./user');
+const BinaryTree = require('./binaryTree');
 const PORT = process.env.PORT || 3001;
 
 const ROLES = {
@@ -116,3 +117,38 @@ io.on("connection", socket => {
 server.listen(PORT, () => {
   console.log('Signal server started on port ' + PORT)
 })
+
+const tree = new BinaryTree();
+
+tree.add(new User('andrey', '1'))
+tree.add(new User('bob', '2'))
+tree.add(new User('jack', '3'))
+tree.add(new User('nick', '4'))
+tree.add(new User('nick5', '5'))
+tree.add(new User('nick6', '6'))
+tree.add(new User('nick7', '7'))
+tree.add(new User('nick8', '8'))
+tree.add(new User('nick9', '9'))
+tree.add(new User('nick10', '10'))
+
+
+
+console.log("=======")
+
+console.log('!!!!', tree.root)
+tree.remove('3');
+tree.remove('4');
+tree.remove('1');
+tree.remove('5');
+tree.remove('9');
+tree.remove('10');
+
+tree.addRoot(new User('gabe', '1'))
+
+
+console.log('!!!!', tree.root)
+// console.log(tree.search('4'));
+
+
+
+console.log("=======")
