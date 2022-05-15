@@ -6,7 +6,6 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* <Route exact path="/call" element={<Call />} /> */}
         <Route exact path="/" element={<Main />} />
         <Route exact path="/network" element={<Network />} />
       </Routes>

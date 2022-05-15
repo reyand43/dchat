@@ -2,11 +2,9 @@
 /* eslint-disable no-undef */
 /* eslint-disable no-unused-vars */
 import {
-  useEffect, useState, useRef, useMemo, useCallback,
+  useEffect, useState, useMemo, useCallback,
 } from 'react';
 import Avatar from 'boring-avatars';
-import { v4 } from 'uuid';
-import { useNavigate } from 'react-router-dom';
 import EyeIcon from '@mui/icons-material/RemoveRedEye';
 import VideoIcon from '@mui/icons-material/Videocam';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
@@ -17,8 +15,6 @@ import ACTIONS from '../../socket/actions';
 import ROLES from '../../const/roles';
 import styles from './Main.module.scss';
 import useWebRTC from '../../hooks/useWebRTC3';
-import eyeIcon from '../../icons/eye.svg';
-import videoIcon from '../../icons/video.svg';
 
 function Main() {
   const [users, setUsers] = useState([]);
