@@ -1,5 +1,6 @@
 .root {
   display: flex;
+  background: #464646;
 }
 
 .users {
@@ -8,12 +9,12 @@
   flex-direction: column;
   border-left: 1px solid gray;
   padding: 10px;
+  height: 100vh;
 }
 
 .videoWrapper {
   position: relative;
-  width: 40%;
-  border: 2px solid red;
+  width: 100%;
   height: fit-content;
 }
 
@@ -32,8 +33,120 @@
   position: relative;
   width: 100%;
   flex-grow: 1;
+  align-items: center;
+  justify-content: center;
 }
 
 .localVideo {
   transform: scale(-1, 1)
+}
+
+.connectionsTitle {
+  color: white;
+  font-weight: 600;
+  font-size: 16px;
+  margin-top: 20px;
+}
+
+.connectionsItem {
+  color: white
+}
+
+.usersTitle {
+  color: white;
+  font-weight: 600;
+  font-size: 16px;
+  margin-top: 20px;
+}
+
+.user {
+  margin: 10px 0;
+  display: flex;
+  align-items: center;
+}
+
+.usersList {
+  overflow-y: auto;
+  // height: 40%;
+}
+
+.localUser {
+  background: white;
+  border-radius: 5px;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  margin: 5px 0 10px;
+
+  .name {
+    color: #464646;
+  }
+  
+  .icon {
+    margin-left: 5px;
+  
+    path {
+      stroke: #464646
+    }
+  }
+}
+
+.name {
+  color: white;
+  margin-left: 10px;
+}
+
+.icon {
+  width: 20px;
+  margin-left: 10px;
+
+  path {
+    stroke: white
+  }
+}
+
+.streamButton {
+  background: none;
+  border: none;
+  outline: none;
+  border-radius: 5px;
+  border: 3px solid white;
+  padding: 5px;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 200ms ease-in;
+  margin-bottom: 10px;
+
+  a {
+    text-decoration: none;
+    color: white;
+  }
+
+  &:hover {
+    background: white;
+    color: #464646;
+    transition: 200ms ease-in;
+
+    a {
+      color: #464646;
+    }
+  }
+}
+
+.wainting {
+  color: white;
+}
+
+.streamerName {
+  position: absolute;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  bottom: 10px;
+  left: 10px;
+  background: #464646;
+  border-radius: 5px;
+  padding: 5px 10px;
 }

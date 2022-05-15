@@ -9,11 +9,11 @@ import ACTIONS from '../socket/actions';
 import useStateWithCallback from './useStateWithCallback';
 
 export default function useWebRTC() {
-  const localMediaStream = useRef(null);
   const [localStreaming, setLocalStreaming] = useState(false);
   const peerMediaElements = useRef({});
   const peerConnections = useRef({});
   const [clients, updateClients] = useStateWithCallback([]);
+  const mediaStream = useRef(null);
 
   useEffect(() => {
     console.log('clients', clients);
@@ -26,8 +26,8 @@ export default function useWebRTC() {
   }, [clients, updateClients]);
 
   async function startStreaming() {
-    localMediaStream.current = await navigator.mediaDevices.getUserMedia({
-      audio: true,
+    mediaStream.current = await navigator.mediaDevices.getUserMedia({
+      audio: false,
       video: {
         width: 1280,
         height: 720,
@@ -39,28 +39,31 @@ export default function useWebRTC() {
 
   async function stopStreaming() {
     setLocalStreaming(false);
-    localMediaStream.current.getTracks().forEach((track) => {
+    mediaStream.current.getTracks().forEach((track) => {
       track.stop();
     });
-    localMediaStream.current = null;
+    mediaStream.current = null;
     socket.emit(ACTIONS.STOP_STREAMING);
   }
 
   useEffect(() => {
-    if (localStreaming && localMediaStream.current) {
+    if (localStreaming && mediaStream.current) {
+      console.log('MSC', mediaStream.current);
       const localVideoElement = peerMediaElements.current[window.localStorage.getItem('localSocketId')];
+      console.log('LVE', localVideoElement);
+
       if (localVideoElement) {
         localVideoElement.volume = 0;
-        localVideoElement.srcObject = localMediaStream.current;
+        localVideoElement.srcObject = mediaStream.current;
       }
     }
   }, [localStreaming]);
 
   useEffect(() => {
     async function startStreamingafterWatching({ peerID }) {
-      if (localMediaStream.current) {
-        localMediaStream.current.getTracks().forEach((track) => {
-          peerConnections.current[peerID].addTrack(track, localMediaStream.current);
+      if (mediaStream.current) {
+        mediaStream.current.getTracks().forEach((track) => {
+          peerConnections.current[peerID].addTrack(track, mediaStream.current);
         });
       }
     }
@@ -104,9 +107,9 @@ export default function useWebRTC() {
       };
 
       // С локального ???
-      if (localMediaStream.current) {
-        localMediaStream.current.getTracks().forEach((track) => {
-          peerConnections.current[peerID].addTrack(track, localMediaStream.current);
+      if (mediaStream.current) {
+        mediaStream.current.getTracks().forEach((track) => {
+          peerConnections.current[peerID].addTrack(track, mediaStream.current);
         });
       }
 
@@ -169,9 +172,10 @@ export default function useWebRTC() {
 
   const provideMediaRef = useCallback((id, node) => {
     peerMediaElements.current[id] = node;
+    console.log('PME', peerMediaElements.current);
   }, []);
 
   return {
-    startStreaming, localMediaStream, localStreaming, provideMediaRef, stopStreaming, clients,
+    startStreaming, mediaStream, localStreaming, provideMediaRef, stopStreaming, clients,
   };
 }

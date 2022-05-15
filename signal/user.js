@@ -5,21 +5,9 @@ class User {
     this.name = name;
     this.socketId = socketId;
     this.role = ROLES.WATCHER;
-    this.watchers = [];
+    this.left = null;
+    this.right = null;
   }
-
-  get userInfo() {
-    return {
-      name: this.name,
-      socketId: this.socketId,
-      role: this.role,
-    }
-  }
-
-  addWatcher(socketId) {
-    this.watchers.push(socketId)
-  }
-
 }
 
 module.exports = User

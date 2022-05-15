@@ -2,76 +2,110 @@
 /* eslint-disable no-undef */
 import { useRef, useEffect, useState } from 'react';
 import vis from 'vis';
-import ROLES from '../../const/roles';
+import {
+  select,
+  json,
+  tree,
+  hierarchy,
+  linkHorizontal,
+  zoom,
+} from 'd3';
 import socket from '../../socket';
 import ACTIONS from '../../socket/actions';
-import stringToColor from '../../utils/stringToColor';
-import styles from './Network.module.scss';
+import './Network.css';
 
 function Network() {
-  const [users, setUsers] = useState([]);
-
-  const ref = useRef(null);
+  const [treeStructure, setTree] = useState(null);
+  const [formatedTree, setFormatedTree] = useState(null);
 
   useEffect(() => {
     socket.emit(ACTIONS.GET_GRAPH);
-    socket.on(ACTIONS.USER_GRAPH_CHANGED, setUsers);
-  }, []);
-
-  useEffect(() => {
-    console.log('users', users);
-    const nodes = new vis.DataSet(users.map((u) => ({
-      id: u.socketId,
-      label: u.name.slice(0, 3),
-      color: {
-        border: u.role === ROLES.WATCHER ? 'red' : 'blue',
-        background: stringToColor(u.socketId),
-      },
-    })));
-    const edgeArray = [];
-    users.forEach((u) => {
-      u.watchers.forEach((w) => {
-        edgeArray.push({
-          from: w,
-          to: u.socketId,
-        });
-      });
+    socket.on(ACTIONS.USER_GRAPH_CHANGED, (newTree) => {
+      console.log('INCOMING TREE', newTree);
+      setTree(newTree);
     });
-    const edges = new vis.DataSet(edgeArray);
-    const data = {
-      nodes,
-      edges,
+  }, []);
+
+  const formatTree = (node) => {
+    const children = [];
+    console.log('NODE', node);
+    if (node.left) {
+      children.push(formatTree(node.left));
+    }
+    if (node.right) {
+      children.push(formatTree(node.right));
+    }
+    const newFormatedTree = {
+      name: node.name,
+      children: [...children],
     };
-    const network = new vis.Network(ref.current, data, { nodes: { borderWidth: 2 } });
-  }, [users]);
-
-  const nodes = new vis.DataSet([]);
-
-  const edges = new vis.DataSet([]);
-
-  // create a network
-  // eslint-disable-next-line no-unused-vars
-  const data = {
-    nodes,
-    edges,
+    return newFormatedTree;
   };
-  const options = {};
-  // // eslint-disable-next-line no-undef
 
-  const createGraph = () => {
-    // // eslint-disable-next-line no-unused-vars
-    const network = new vis.Network(ref.current, data, options);
+  const drawTree = (treeData) => {
+    const svg = select('svg');
+    svg.selectAll('*').remove();
+    const width = document.body.clientWidth;
+    const height = document.body.clientHeight;
+
+    const margin = {
+      top: 0, right: 50, bottom: 0, left: 75,
+    };
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
+
+    const treeLayout = tree().size([innerHeight, innerWidth]);
+
+    const zoomG = svg
+      .attr('width', width)
+      .attr('height', height)
+      .append('g');
+
+    const g = zoomG.append('g')
+      .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    svg.call(zoom().on('zoom', (event) => {
+      zoomG.attr('transform', event.transform);
+    }));
+
+    const root = hierarchy(treeData);
+    console.log('ROOT', root);
+    const links = treeLayout(root).links();
+    const linkPathGenerator = linkHorizontal()
+      .x((d) => d.y)
+      .y((d) => d.x);
+
+    g.selectAll('path').data(links)
+      .enter().append('path')
+      .attr('d', linkPathGenerator);
+
+    g.selectAll('text').data(root.descendants())
+      .enter().append('text')
+      .attr('x', (d) => d.y)
+      .attr('y', (d) => d.x)
+      .attr('dy', '0.32em')
+      .attr('text-anchor', (d) => (d.children ? 'middle' : 'start'))
+      .attr('font-size', (d) => `${3.25}em`)
+      .text((d) => d.data.name);
   };
 
   useEffect(() => {
-    createGraph();
-  }, []);
+    console.log('users', treeStructure);
+    if (treeStructure) {
+      setFormatedTree(formatTree(treeStructure));
+    }
+  }, [treeStructure]);
+
+  useEffect(() => {
+    if (formatedTree) {
+      console.log('FORMATED TREE', formatedTree);
+      drawTree(formatedTree);
+    }
+  }, [formatedTree]);
 
   return (
-    <div>
-      <span className={styles.watcher}>Watcher</span>
-      <span className={styles.streamer}>Streamer</span>
-      <div ref={ref} id="mynetwork" className={styles.network} />
+    <div id="wrapper">
+      <svg id="svg" />
     </div>
   );
 }

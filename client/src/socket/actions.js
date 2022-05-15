@@ -9,6 +9,8 @@ const ACTIONS = {
   USER_CHANGE_PROPERTIES: 'user_change_properties',
   USER_GRAPH_CHANGED: 'user_graph_changed',
   GET_GRAPH: 'get_graph',
+  RECONNECT: 'reconnect',
+  STREAMER_LEFT: 'streamer_left',
   JOIN: 'join',
   LEAVE: 'leave',
   SHARE_ROOMS: 'share-rooms',
