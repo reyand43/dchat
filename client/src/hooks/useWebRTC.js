@@ -1,5 +1,5 @@
 /* eslint-disable no-undef */
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import freeice from 'freeice';
 import socket from '../socket';
 import ACTIONS from '../socket/actions';
@@ -7,96 +7,53 @@ import useStateWithCallback from './useStateWithCallback';
 import ROLES from '../const/roles';
 
 export default function useWebRTC() {
-  const [clients, updateClients] = useStateWithCallback([]);
+  const mediaStream = useRef(null);
+  const [mediaStreamState, updateMediaStreamState] = useStateWithCallback(null);
+  const [localStreaming, setLocalStreaming] = useState(false);
+  const peerMediaElement = useRef(null);
   const peerConnections = useRef({});
-  const localMediaStream = useRef(null);
-  const peerMediaElements = useRef({});
-  const localPeerID = useRef('');
+  const [clients, setClients] = useState([]);
 
-  useEffect(() => {
-    console.log('clients', clients);
-  }, [clients]);
-
-  const addNewClient = useCallback((newClient, cb) => {
-    if (!clients.map((c) => c.peerID).includes(newClient)) {
-      updateClients((list) => [...list, newClient], cb);
-    }
-  }, [clients, updateClients]);
-
-  async function handleResumeCapture() {
-    localMediaStream.current = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: {
-        width: 1280,
-        height: 720,
-      },
+  async function startStreaming() {
+    mediaStream.current = {
+      peerID: window.localStorage.getItem('localSocketId'),
+      stream: await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          width: 1280,
+          height: 720,
+        },
+      }),
+    };
+    setLocalStreaming(true);
+    updateMediaStreamState({
+      peerID: window.localStorage.getItem('localSocketId'),
+      stream: await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          width: 1280,
+          height: 720,
+        },
+      }),
     });
-    const localVideoElement = peerMediaElements.current[localPeerID.current];
-    if (localVideoElement) {
-      localVideoElement.volume = 0;
-      localVideoElement.srcObject = localMediaStream.current;
-    }
+    socket.emit(ACTIONS.START_STREAMING);
   }
 
-  const handleChangeProperties = ({ users }) => {
-    console.log('handleChangeProperties', users);
-    if (
-      users.find((u) => u.peerID === localPeerID.current).role === ROLES.STREAMER
-      && window.localStorage.getItem('role') === ROLES.WATCHER) {
-      updateClients(users, handleResumeCapture);
-      window.localStorage.setItem('role', ROLES.STREAMER);
-    } else {
-      updateClients(users);
-      window.localStorage.setItem('role', ROLES.WATCHER);
-    }
-  };
-
-  async function startCapture({ name, role }) {
-    localMediaStream.current = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: {
-        width: 1280,
-        height: 720,
-      },
+  async function stopStreaming() {
+    setLocalStreaming(false);
+    mediaStream.current.stream.getTracks().forEach((track) => {
+      track.stop();
     });
-    if (!clients.find((client) => client.peerID === localPeerID.current)) {
-      addNewClient({
-        peerID: localPeerID.current,
-        name,
-        audio: true,
-        video: true,
-        role,
-      }, () => {
-        const localVideoElement = peerMediaElements.current[localPeerID.current];
-        if (localVideoElement) {
-          localVideoElement.volume = 0;
-          localVideoElement.srcObject = localMediaStream.current;
-        }
-      });
-    } else {
-      const localVideoElement = peerMediaElements.current[localPeerID.current];
-      if (localVideoElement) {
-        localVideoElement.volume = 0;
-        localVideoElement.srcObject = localMediaStream.current;
-      }
-    }
+    updateMediaStreamState(null, mediaStream.current = null);
+    socket.emit(ACTIONS.STOP_STREAMING);
   }
 
   useEffect(() => {
-    // Добавляется новый юзер (в том числе мы)
-    // eslint-disable-next-line consistent-return
-    console.log('TRIGGER');
-    async function handleNewPeer({ peerID, createOffer, socketData }) {
-      console.log('socketData', peerID, createOffer, socketData);
-      // Если юзер уже добавлен, то не добавляем
-      if (peerID in peerConnections.current) {
-        peerConnections.current[peerID] = null;
-        // return console.warn(`Already connected to ${peerID}`);
-      }
-      // В peerConnections добавляем новое соединение с этим юзером
+    async function handleNewPeer({ peerID, createOffer }) {
       peerConnections.current[peerID] = new RTCPeerConnection({
         iceServers: freeice(),
       });
+      setClients((prev) => [...prev, peerID]);
       // Когда можем получить айскандидата, отправляем его
       peerConnections.current[peerID].onicecandidate = (event) => {
         if (event.candidate) {
@@ -109,22 +66,40 @@ export default function useWebRTC() {
       // Когда получаем трек добавляем его конкретному peerID
       let tracksNumber = 0;
       peerConnections.current[peerID].ontrack = ({ streams: [remoteStream] }) => {
+
         tracksNumber += 1;
-        if (tracksNumber === 2) {
+        // if (tracksNumber === 1 && !peerMediaElement.current) {
+        if (tracksNumber === 1) {
           // Когда получили и микрофон и видео установили стрим в src видео
-          addNewClient({
+          mediaStream.current = {
+            stream: remoteStream,
             peerID,
-            ...socketData,
-          }, () => {
-            peerMediaElements.current[peerID].srcObject = remoteStream;
+          };
+          updateMediaStreamState({
+            stream: remoteStream,
+            peerID,
           });
+          [...Object.keys(peerConnections.current)]
+            .filter((pc) => pc !== peerID)
+            .forEach((currentPeerID) => {
+              mediaStream.current.stream.getTracks().forEach((track) => {
+                peerConnections.current[currentPeerID].addTrack(track, mediaStream.current.stream);
+              });
+            });
+          [...Object.keys(peerConnections.current)]
+            .filter((pc) => pc !== peerID)
+            .forEach((pc) => {
+              socket.emit(ACTIONS.RECONNECT, pc);
+            });
         }
       };
 
-      // С локального ???
-      localMediaStream.current.getTracks().forEach((track) => {
-        peerConnections.current[peerID].addTrack(track, localMediaStream.current);
-      });
+      // С локального
+      if (mediaStream.current) {
+        mediaStream.current.stream.getTracks().forEach((track) => {
+          peerConnections.current[peerID].addTrack(track, mediaStream.current.stream);
+        });
+      }
 
       if (createOffer) {
         // Если мы подключились к уже существующим, то создаем и отправлем оффер(SDP)
@@ -137,7 +112,15 @@ export default function useWebRTC() {
       }
     }
 
+    async function addIceCandidate({ peerID, iceCandidate }) {
+
+      peerConnections.current[peerID].addIceCandidate(
+        new RTCIceCandidate(iceCandidate),
+      );
+    }
+
     async function setRemoteMedia({ peerID, sessionDescription: remoteDescription }) {
+
       await peerConnections.current[peerID].setRemoteDescription(
         new RTCSessionDescription(remoteDescription),
       );
@@ -153,23 +136,28 @@ export default function useWebRTC() {
       }
     }
 
-    async function addIceCandidate({ peerID, iceCandidate }) {
-      peerConnections.current[peerID].addIceCandidate(
-        new RTCIceCandidate(iceCandidate),
-      );
+    async function removePeer({ peerID }) {
+      if (mediaStream.current?.peerID === peerID && !localStreaming) {
+        mediaStream.current = null;
+        updateMediaStreamState(null);
+      }
+      setClients((prev) => prev.filter((p) => p !== peerID));
+      peerConnections.current[peerID] = null;
+      delete peerConnections.current[peerID];
     }
 
-    const handleRemovePeer = ({ peerID }) => {
-      if (peerConnections.current[peerID]) {
-        peerConnections.current[peerID].close();
+    async function removeStreamerVideo(peerID) {
+      if (mediaStream.current) {
+        mediaStream.current = null;
+        updateMediaStreamState(null);
       }
+      if (peerConnections.current[peerID]) {
+        peerConnections.current[user.socketId].close();
+        peerConnections.current[peerID] = null;
+        delete peerConnections.current[peerID];
+      }
+    }
 
-      delete peerConnections.current[peerID];
-      delete peerMediaElements.current[peerID];
-      updateClients((list) => list.filter((client) => client.peerID !== peerID));
-    };
-
-    // Добавился юзер
     socket.on(ACTIONS.ADD_PEER, handleNewPeer);
 
     // Прислали SDP
@@ -178,60 +166,39 @@ export default function useWebRTC() {
     // Прислали ICE_CANDIDATES
     socket.on(ACTIONS.ICE_CANDIDATE, addIceCandidate);
 
-    // Ушел юзер
-    socket.on(ACTIONS.REMOVE_PEER, handleRemovePeer);
+    socket.on(ACTIONS.REMOVE_PEER, removePeer);
 
-    socket.on(ACTIONS.CHANGE_PROPERTIES, handleChangeProperties);
+    socket.on(ACTIONS.STREAMER_LEFT, removeStreamerVideo);
 
-    socket.on(ACTIONS.PEER_ID, ({ peerID }) => {
-      console.log('get peer id', peerID);
-      localPeerID.current = peerID;
-      window.localStorage.setItem('peerID', peerID);
-    });
-
-    if (window.localStorage.getItem('peerID')) {
-      localPeerID.current = window.localStorage.getItem('peerID');
-    }
-
-    const name = window.localStorage.getItem('name') || 'Unknown';
-    const role = window.localStorage.getItem('role') || ROLES.STREAMER;
-    startCapture({ name, role })
-      .then(() => socket.emit(ACTIONS.JOIN, { room: role, name }))
-      .catch((e) => console.error('Error getting userMedia', e));
-
-    return () => {
-      localMediaStream.current.getTracks().forEach((track) => track.stop());
-      socket.emit(ACTIONS.LEAVE);
-    };
-  }, []);
-
-  const provideMediaRef = useCallback((id, node) => {
-    peerMediaElements.current[id] = node;
-  }, []);
-
-  const changeRole = async (role) => {
-    const prevRole = window.localStorage.getItem('role');
-    if (prevRole !== role) {
-      const localClient = clients.find((client) => (client.peerID === localPeerID.current));
-      if (role === ROLES.WATCHER) {
-        localMediaStream.current.getTracks().forEach((track) => track.stop());
-        localMediaStream.current = null;
-        updateClients([{ ...localClient, role }]);
-        socket.emit(ACTIONS.CHANGE_ROLE, { role });
-      } else {
-        updateClients([{
-          ...localClient,
-          role,
-        }]);
-        const name = window.localStorage.getItem('name');
-        startCapture(name, role)
-          .then(() => socket.emit(ACTIONS.CHANGE_ROLE, { role }))
-          .catch((e) => console.error('Error getting userMedia', e));
+    socket.on(ACTIONS.USER_CHANGE_PROPERTIES, (user) => {
+      if (user.role === ROLES.WATCHER) {
+        if (mediaStream.current) {
+          mediaStream.current = null;
+          updateMediaStreamState(null);
+        }
+        if (peerConnections.current[user.socketId]) {
+          peerConnections.current[user.socketId].close();
+          peerConnections.current[user.socketId] = null;
+          delete peerConnections.current[user.socketId];
+        }
       }
+    });
+  }, []);
 
-      window.localStorage.setItem('role', role);
-    }
+  const provideMediaRef = (node) => {
+    if (!node) return;
+    peerMediaElement.current = node;
+    peerMediaElement.current.srcObject = mediaStream.current.stream;
   };
 
-  return { clients, provideMediaRef, changeRole };
+  return {
+    mediaStream,
+    startStreaming,
+    localStreaming,
+    provideMediaRef,
+    stopStreaming,
+    mediaStreamState,
+    updateMediaStreamState,
+    clients,
+  };
 }
