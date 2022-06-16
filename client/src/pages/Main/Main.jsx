@@ -14,7 +14,7 @@ import socket from '../../socket';
 import ACTIONS from '../../socket/actions';
 import ROLES from '../../const/roles';
 import styles from './Main.module.scss';
-import useWebRTC from '../../hooks/useWebRTC3';
+import useWebRTC from '../../hooks/useWebRTC';
 
 function Main() {
   const [users, setUsers] = useState([]);
@@ -26,19 +26,15 @@ function Main() {
 
   const localUser = useMemo(
     () => {
-      console.log('localUser', users);
       return users.find((u) => u.socketId === localSocketId);
     },
     [users, localSocketId],
   );
 
   const streamer = useMemo(() => users.find((u) => u.role === ROLES.STREAMER), [users]);
-  useEffect(() => {
-    console.log('MEDIa stream current', mediaStream.current);
-  }, [mediaStream.current]);
+
 
   const findNameById = (socketId) => {
-    console.log(users);
     return `${users.find((u) => u.socketId === socketId)?.name}`;
   };
 
@@ -46,10 +42,6 @@ function Main() {
     () => !users.find((u) => u.role === ROLES.STREAMER && u.socketId !== localSocketId),
     [users, localSocketId],
   );
-
-  useEffect(() => {
-    console.log('CLIENTS', clients);
-  }, [clients]);
 
   useEffect(() => {
     socket.emit(ACTIONS.JOIN_TO_CALL, {
@@ -72,11 +64,6 @@ function Main() {
     );
 
     socket.on(ACTIONS.USER_CHANGE_PROPERTIES, (user) => {
-      console.log(ACTIONS.USER_CHANGE_PROPERTIES, users, user);
-      // if (user.role === ROLES.WATCHER) {
-      //   mediaStream.current = null;
-      //   updateMediaStreamState(null);
-      // }
       setUsers((prev) => prev.map((u) => {
         if (u.socketId === user.socketId) {
           return user;
@@ -121,7 +108,6 @@ function Main() {
   }, [users]);
 
   const getIconForRole = (role) => {
-    console.log('ROLE ROLE ROLE ROLE ROLE', role);
     if (role === ROLES.WATCHER) {
       return <EyeIcon className={styles.icon} fontSize="medium" />;
     }
@@ -134,6 +120,7 @@ function Main() {
     }
     return <ArrowUpwardIcon className={styles.icon} fontSize="medium" />;
   };
+
 
   return (
     <div className={styles.root}>
@@ -150,6 +137,7 @@ function Main() {
               playsInline
               // muted={clientID === LOCAL_VIDEO}
               muted
+              className={localStreaming ? styles.video : ''}
             />
             <span className={styles.streamerName}>{streamer && getName(streamer.socketId)}</span>
           </div>
@@ -187,16 +175,6 @@ function Main() {
           </div>
         )}
         <button className={styles.streamButton}><a href="/network" target="_blank">Network</a></button>
-        {Boolean(clients.length) && <span className={styles.connectionsTitle}>Connections</span>}
-        {clients.map((p) => (
-          <div key={p} className={styles.user}>
-            <Avatar variant="beam" name={findNameById(p)} />
-            <span className={styles.name}>
-              <b>{findNameById(p)}</b>
-            </span>
-            {getIconForConnections(p)}
-          </div>
-        ))}
         {Boolean(users.length > 1) && <span className={styles.usersTitle}>Users</span>}
         <div className={styles.usersList}>
           {users.map((u) => {

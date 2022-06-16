@@ -21,8 +21,6 @@ io.on("connection", socket => {
   socket.on(ACTIONS.JOIN_TO_CALL, (({ name }) => {
     const user = new User(name, socket.id)
     users.set(socket.id, user)
-    // console.log(users)
-    /// 
     const { parent } = tree.add(user)
     socket.emit(ACTIONS.JOIN_INFO, {
       users: [...users.values()].map((u) => u),
@@ -32,9 +30,7 @@ io.on("connection", socket => {
     const streamers = [...users.values()].filter((userInfo) => 
       userInfo.role === ROLES.STREAMER
     )
-    // console.log("STREAMERS", [...users.values()])
     if (parent && parent.socketId !== '0') {
-      // console.log("PARENT", parent)
       io.to(parent.socketId).emit(ACTIONS.ADD_PEER, {
         peerID: socket.id,
         createOffer: true,
@@ -46,13 +42,10 @@ io.on("connection", socket => {
       });
     }
     emitGraph()
-    // console.log('!!!!', tree)
   }))
 
   socket.on(ACTIONS.START_STREAMING, () => {
-    // console.log(ACTIONS.START_STREAMING)
     const streamer = users.get(socket.id)
-    // console.log('STREAMER', streamer)
     streamer.role = ROLES.STREAMER
     const removeInfo = tree.remove(socket.id);
     makeReconectionAfterRemove(removeInfo);
@@ -76,13 +69,11 @@ io.on("connection", socket => {
         });
       }
     })
-    // console.log('!!!!', tree)
     
     emitGraph()
   })
 
   socket.on(ACTIONS.RECONNECT, (peerID) => {
-    console.log('ACTIONS.RECONNECT', peerID)
     io.to(peerID).emit(ACTIONS.REMOVE_PEER, {
       peerID: socket.id,
     });
@@ -148,7 +139,6 @@ io.on("connection", socket => {
     users.delete(socket.id)
     io.emit(ACTIONS.LEFT_USER, socket.id)
     const removeInfo = tree.remove(socket.id);
-    // console.log('removeInfo', removeInfo);
     // удаляем связи у детей удаленного узла 
     makeReconectionAfterRemove(removeInfo);
     io.emit(ACTIONS.REMOVE_PEER, {
@@ -158,10 +148,12 @@ io.on("connection", socket => {
   }
 
   function makeReconectionAfterRemove(removeInfo) {
-    console.log("REMOVE INFO", removeInfo);
     removeInfo?.chidren?.forEach((c) => {
       io.to(c.socketId).emit(ACTIONS.REMOVE_PEER, {
         peerID: socket.id,
+      });
+      socket.emit(ACTIONS.REMOVE_PEER, {
+        peerID: c.socketId,
       });
     })
     // удаляем связи у родителя удаленного узла 
@@ -175,12 +167,10 @@ io.on("connection", socket => {
         peerID: removeInfo?.newNode.socketId,
         createOffer: true,
       });
-      console.log("SEND ADD PEER TO", removeInfo?.parent.name, 'offer true')
       io.to(removeInfo?.newNode.socketId).emit(ACTIONS.ADD_PEER, {
         peerID: removeInfo?.parent.socketId,
         createOffer: false,
       });
-      console.log("SEND ADD PEER TO", removeInfo?.newNode.name, 'offer false')
       return
     }
     if (removeInfo?.newNode && removeInfo.newNodeParent) {
@@ -197,12 +187,10 @@ io.on("connection", socket => {
           peerID: removeInfo?.newNode.socketId,
           createOffer: true,
         });
-        console.log("SEND ADD PEER TO", removeInfo?.parent.name, 'offer true')
         io.to(removeInfo?.newNode.socketId).emit(ACTIONS.ADD_PEER, {
           peerID: removeInfo?.parent.socketId,
           createOffer: false,
         });
-        console.log("SEND ADD PEER TO", removeInfo?.newNode.name, 'offer false')
       }
       
       // создаем связи у нового узла с новыми детьми
@@ -217,7 +205,6 @@ io.on("connection", socket => {
         });
       })
     }
-    console.log("TREE", tree.root)
   }
 
   function emitGraph() {
@@ -230,38 +217,3 @@ io.on("connection", socket => {
 server.listen(PORT, () => {
   console.log('Signal server started on port ' + PORT)
 })
-
-// const tree = new BinaryTree(); 
-
-// tree.add(new User('andrey', '1'))
-// tree.add(new User('bob', '2'))
-// tree.add(new User('jack', '3')
-// tree.add(new User('nick', '4'))
-// tree.add(new User('nick5', '5'))
-// tree.add(new User('nick6', '6'))
-// tree.add(new User('nick7', '7'))
-// tree.add(new User('nick8', '8'))
-// tree.add(new User('nick9', '9'))
-// tree.add(new User('nick10', '10'))
-
-
-
-// console.log("=======")
-
-// console.log('!!!!', tree.root)
-// tree.remove('3');
-// tree.remove('4');
-// tree.remove('1');
-// tree.remove('5');
-// tree.remove('9');
-// tree.remove('10');
-
-// tree.addRoot(new User('gabe', '1'))
-
-
-// console.log('!!!!', tree.root)
-// // console.log(tree.search('4'));
-
-
-
-// console.log("=======")

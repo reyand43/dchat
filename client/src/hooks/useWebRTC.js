@@ -50,21 +50,12 @@ export default function useWebRTC() {
 
   useEffect(() => {
     async function handleNewPeer({ peerID, createOffer }) {
-      console.log('handle new peer', peerID, createOffer);
-      // if (!mediaStream.current && createOffer) {
-      //   mediaStream.current = {
-      //     peerID,
-      //     stream: new MediaStream(),
-      //   };
-      //   console.log('MEDIA STREAM SUPPER CURRENT', mediaStream.current);
-      // }
       peerConnections.current[peerID] = new RTCPeerConnection({
         iceServers: freeice(),
       });
       setClients((prev) => [...prev, peerID]);
       // Когда можем получить айскандидата, отправляем его
       peerConnections.current[peerID].onicecandidate = (event) => {
-        console.log('ready to send ice candidate');
         if (event.candidate) {
           socket.emit(ACTIONS.RELAY_ICE, {
             peerID,
@@ -75,8 +66,6 @@ export default function useWebRTC() {
       // Когда получаем трек добавляем его конкретному peerID
       let tracksNumber = 0;
       peerConnections.current[peerID].ontrack = ({ streams: [remoteStream] }) => {
-        // console.log('track', tracksNumber, peerMediaElement.current);
-        console.log('GOT TRACK from', peerID);
 
         tracksNumber += 1;
         // if (tracksNumber === 1 && !peerMediaElement.current) {
@@ -90,46 +79,32 @@ export default function useWebRTC() {
             stream: remoteStream,
             peerID,
           });
-          // console.log('MEDIA STREAM CURRENT 1111', mediaStream.current);
           [...Object.keys(peerConnections.current)]
             .filter((pc) => pc !== peerID)
             .forEach((currentPeerID) => {
               mediaStream.current.stream.getTracks().forEach((track) => {
-                console.log('RESEND TRACK to', currentPeerID, track);
                 peerConnections.current[currentPeerID].addTrack(track, mediaStream.current.stream);
               });
             });
           [...Object.keys(peerConnections.current)]
             .filter((pc) => pc !== peerID)
             .forEach((pc) => {
-              console.log('ACTIONS.RECONNECT', pc);
               socket.emit(ACTIONS.RECONNECT, pc);
             });
         }
       };
-      // console.log('peerConnections', peerConnections);
 
-      // С локального ???
+      // С локального
       if (mediaStream.current) {
-        console.log('mediaStream.current', mediaStream.current);
         mediaStream.current.stream.getTracks().forEach((track) => {
-          console.log('SEND TRACK to', peerID, track);
           peerConnections.current[peerID].addTrack(track, mediaStream.current.stream);
         });
       }
 
       if (createOffer) {
         // Если мы подключились к уже существующим, то создаем и отправлем оффер(SDP)
-        console.log('ready to send SDP');
         const offer = await peerConnections.current[peerID].createOffer();
-        console.log('offer', offer);
         await peerConnections.current[peerID].setLocalDescription(offer);
-        // if (!mediaStream.current) {
-        //   mediaStream.current = {
-        //     stream: new MediaStream(),
-        //     peerID,
-        //   };
-        // }
         socket.emit(ACTIONS.RELAY_SDP, {
           peerID,
           sessionDescription: offer,
@@ -138,7 +113,6 @@ export default function useWebRTC() {
     }
 
     async function addIceCandidate({ peerID, iceCandidate }) {
-      console.log('addIceCandidate', peerID, peerConnections);
 
       peerConnections.current[peerID].addIceCandidate(
         new RTCIceCandidate(iceCandidate),
@@ -146,7 +120,6 @@ export default function useWebRTC() {
     }
 
     async function setRemoteMedia({ peerID, sessionDescription: remoteDescription }) {
-      console.log('setRemoteMedia', peerID, peerConnections);
 
       await peerConnections.current[peerID].setRemoteDescription(
         new RTCSessionDescription(remoteDescription),
@@ -164,12 +137,7 @@ export default function useWebRTC() {
     }
 
     async function removePeer({ peerID }) {
-      console.log('REMOVE PEER', peerID, peerConnections.current);
-      //   updateClients((prev) => prev.filter((c) => c.peerID !== peerID));
-      //   peerMediaElements.current[peerID] = null;
-      // console.log('mediaStream.current', mediaStream.current);
       if (mediaStream.current?.peerID === peerID && !localStreaming) {
-        // console.log('should delete video');
         mediaStream.current = null;
         updateMediaStreamState(null);
       }
@@ -178,18 +146,7 @@ export default function useWebRTC() {
       delete peerConnections.current[peerID];
     }
 
-    // async function handleUserLeft(peerID) {
-    // //   updateClients((prev) => prev.filter((c) => c.peerID !== peerID));
-    // //   peerMediaElements.current[peerID] = null;
-    //   if (mediaStream.current.peerID === peerID) {
-    //     mediaStream.current = null;
-    //     updateMediaStreamState(null);
-    //   }
-    //   peerConnections.current[peerID] = null;
-    // }
-
     async function removeStreamerVideo(peerID) {
-      console.log('STREAMER_LEFT');
       if (mediaStream.current) {
         mediaStream.current = null;
         updateMediaStreamState(null);
@@ -226,8 +183,6 @@ export default function useWebRTC() {
         }
       }
     });
-
-    // socket.on(ACTIONS.LEFT_USER, handleUserLeft);
   }, []);
 
   const provideMediaRef = (node) => {

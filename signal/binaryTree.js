@@ -15,7 +15,6 @@ class BinaryTree {
         let itemAdded = false;
 
         while(queue.length && !itemAdded) {
-            console.log('tick')
             const tempNode = queue.shift();
             if (!tempNode.left) {
                 tempNode.left = node;
@@ -52,7 +51,6 @@ class BinaryTree {
             return;
         }
         if (!this.getChidren(node).length) {
-            console.log("THIS ROOT", this.root)
             node.left = this.root.left
             node.right = this.root.right
         }
@@ -63,9 +61,7 @@ class BinaryTree {
         let foundNode = null;
         let foundNodeParent = null;
         function recursiveSearch(node, parent) {
-            // console.log(node?.socketId, searchedId)
             if (node != null) {
-                // console.log('%%%', node.socketId)
                 if (node.socketId !== searchedId) {
                     if (node.left) {
                         recursiveSearch(node.left, node);
@@ -130,7 +126,6 @@ class BinaryTree {
         if ( !deletedNode ) {
             return { };
         }
-        // console.log('&&&', 'deletedNode', JSON.stringify(deletedNode), 'deletedNodeParent', JSON.stringify(deletedNodeParent));
 
         // Если удаленный узел является листом то убираем ссылку на него у родителя
         if (!deletedNode.left && !deletedNode.right && deletedNodeParent) {
@@ -141,25 +136,6 @@ class BinaryTree {
             }
             return { chidren: this.getChidren(deletedNode), parent: deletedNodeParent.socketId !== '0' ? deletedNodeParent : null, newNode: null };
         }
-
-        // Если у удаленного узла только один потомок то соединяем его с родителем
-        // if (!deletedNode.right && deletedNode.left) {
-        //     if (deletedNodeParent?.left?.socketId === deletedNode.socketId) {
-        //         deletedNodeParent.left = deletedNode.left;
-        //     } else {
-        //         deletedNodeParent.right = deletedNode.left;
-        //     }
-        //     return { chidren: this.getChidren(deletedNode), parent: deletedNodeParent.socketId !== '0' ? deletedNodeParent : null, newNode: deletedNode.left};
-        // }
-
-        // if (deletedNode.right && !deletedNode.left) {
-        //     if (deletedNodeParent?.right?.socketId === deletedNode.socketId) {
-        //         deletedNodeParent.right = deletedNode.right;
-        //     } else {
-        //         deletedNodeParent.left = deletedNode.right;
-        //     }
-        //     return { chidren: this.getChidren(deletedNode), parent: deletedNodeParent.socketId !== '0' ? deletedNodeParent : null, newNode: deletedNode.right};
-        // }
 
         // Ищем лист из ветки удаленного узла
         const { node: leafNode, parent: leafNodeParent } = this.findDeepestLeaf(deletedNode)
@@ -187,7 +163,6 @@ class BinaryTree {
         leafNode.left = deletedNode.left
         leafNode.right = deletedNode.right
         return { chidren: this.getChidren(deletedNode), parent: deletedNodeParent.socketId !== '0' ? deletedNodeParent : null, newNode: leafNode, newNodeParent: leafNodeParent};
-        // console.log("LEAF NODE", leafNode)
     }
 }
 

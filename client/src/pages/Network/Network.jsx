@@ -1,10 +1,8 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable no-undef */
-import { useRef, useEffect, useState } from 'react';
-import vis from 'vis';
+import { useEffect, useState } from 'react';
 import {
   select,
-  json,
   tree,
   hierarchy,
   linkHorizontal,
@@ -21,14 +19,12 @@ function Network() {
   useEffect(() => {
     socket.emit(ACTIONS.GET_GRAPH);
     socket.on(ACTIONS.USER_GRAPH_CHANGED, (newTree) => {
-      console.log('INCOMING TREE', newTree);
       setTree(newTree);
     });
   }, []);
 
   const formatTree = (node) => {
     const children = [];
-    console.log('NODE', node);
     if (node.left) {
       children.push(formatTree(node.left));
     }
@@ -69,7 +65,6 @@ function Network() {
     }));
 
     const root = hierarchy(treeData);
-    console.log('ROOT', root);
     const links = treeLayout(root).links();
     const linkPathGenerator = linkHorizontal()
       .x((d) => d.y)
@@ -90,7 +85,6 @@ function Network() {
   };
 
   useEffect(() => {
-    console.log('users', treeStructure);
     if (treeStructure) {
       setFormatedTree(formatTree(treeStructure));
     }
@@ -98,7 +92,6 @@ function Network() {
 
   useEffect(() => {
     if (formatedTree) {
-      console.log('FORMATED TREE', formatedTree);
       drawTree(formatedTree);
     }
   }, [formatedTree]);
